@@ -25,6 +25,8 @@ pub extern "C" fn _start() -> ! {
     set_vga_fg(VgaFgColour::Pink);
     println!("1/2 = {}", 1.0 / 2.0);
 
+    panic!("I'm panicking because of how great things are!");
+
     #[allow(clippy::empty_loop)]
     loop {}
 }
@@ -32,7 +34,8 @@ pub extern "C" fn _start() -> ! {
 /// Called on panic.
 #[panic_handler]
 fn panic(info: &PanicInfo) -> ! {
-    // print panic message!
+    // format & print panic message
+    set_vga_attr(VgaBgColour::default(), VgaFgColour::LightRed, false);
     println!("{}", info);
     // ...loop forever...
     loop {}
