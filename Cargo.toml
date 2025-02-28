@@ -1,6 +1,19 @@
 [package]
 name = "tlenek"
-version = "0.1.0"
+version = "0.1.0-alpha.1"
+authors = ["Max Gilmour <mgilmour@maxgmr.ca>"]
 edition = "2021"
+description = "A bare-bones operating system"
+# documentation - default docs.rs page
+readme = "README.md"
+homepage = "https://github.com/maxgmr/tlenek"
+repository = "https://github.com/maxgmr/tlenek"
+license = "GPL-3.0"
+keywords = ["os"]
+categories = []
+# build - default automatic detection
+exclude = []
+include = []
 
 [dependencies]
+bootloader = "0.9"

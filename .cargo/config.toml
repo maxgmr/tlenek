@@ -1,0 +1,11 @@
+[build]
+target = "x86_64-tlenek.json"
+
+[target.'cfg(target_os = "none")']
+runner = "bootimage runner"
+
+[unstable]
+# must use `compiler_builtins` impls because can't link to OS C library
+build-std-features = ["compiler-builtins-mem"]
+# must recompile to allow custom target
+build-std = ["core", "compiler_builtins"]
