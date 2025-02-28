@@ -10,12 +10,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Added
 
 - Generated version message.
+- `print_str` VGA write function.
 
 ### Changed
 
-- Refactored VGA text display.
-
 ### Removed
+
+- `putc_vga_text` in favour of safer `print_str`.
 
 ## [0.1.0-alpha.1] - 2025-02-27
 

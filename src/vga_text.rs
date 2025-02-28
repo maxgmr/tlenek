@@ -2,14 +2,14 @@ use core::fmt;
 
 use volatile::Volatile;
 
-pub const VGA_BUFFER_ADDR: usize = 0xB8000;
+const VGA_BUFFER_ADDR: usize = 0xB8000;
 const VGA_BUFFER_HEIGHT: usize = 25;
 const VGA_BUFFER_WIDTH: usize = 80;
 
 const PRINTABLE_RANGE_START: u8 = 0x20;
 const PRINTABLE_RANGE_END: u8 = 0x7E;
 
-const VGA_UNKNOWN_CHAR: u8 = 0xFE;
+const VGA_UNPRINTABLE: u8 = 0xFE;
 
 #[derive(Debug, Default, Copy, Clone, PartialEq, Eq, PartialOrd, Ord, Hash)]
 #[repr(u8)]
@@ -84,14 +84,23 @@ struct VgaBuffer {
 }
 
 #[derive(Debug)]
-pub struct Writer {
+struct Writer {
+    // Current position within the last row.
     column_position: usize,
     attr_byte: VgaAttrByte,
     // We know that the VGA text buffer is valid for the whole runtime
     buffer: &'static mut VgaBuffer,
 }
 impl Writer {
-    pub fn write_char(&mut self, byte: u8) {
+    fn new(bg_colour: VgaBgColour, fg_colour: VgaFgColour, blink: bool) -> Self {
+        Self {
+            column_position: 0,
+            attr_byte: VgaAttrByte::new(bg_colour, fg_colour, blink),
+            buffer: unsafe { &mut *(VGA_BUFFER_ADDR as *mut VgaBuffer) },
+        }
+    }
+
+    fn write_char(&mut self, byte: u8) {
         match byte {
             b'\n' => self.new_line(),
             byte => {
@@ -113,19 +122,32 @@ impl Writer {
         }
     }
 
-    pub fn write_string(&mut self, s: &str) {
+    fn write_string(&mut self, s: &str) {
         for byte in s.bytes() {
             match byte {
                 // printable ASCII byte or newline
                 PRINTABLE_RANGE_START..=PRINTABLE_RANGE_END | b'\n' => self.write_char(byte),
                 // not part of printable ASCII range
-                _ => self.write_char(VGA_UNKNOWN_CHAR),
+                _ => self.write_char(VGA_UNPRINTABLE),
             }
         }
     }
 
     fn new_line(&mut self) {
-        todo!()
+        // Shift all the lines upward
+        for row in 1..VGA_BUFFER_HEIGHT {
+            for col in 0..VGA_BUFFER_WIDTH {
+                let c = self.buffer.chars[row][col].read();
+                self.buffer.chars[row - 1][col].write(c);
+            }
+        }
+
+        self.clear_row(VGA_BUFFER_HEIGHT - 1);
+        self.column_position = 0;
+    }
+
+    fn clear_row(&mut self, row: usize) {
+        todo!();
     }
 }
 impl fmt::Write for Writer {
@@ -135,26 +157,7 @@ impl fmt::Write for Writer {
     }
 }
 
-pub fn print_str(string: &str, bg: VgaBgColour, fg: VgaFgColour, blink: bool) {
-    let mut writer = Writer {
-        column_position: 0,
-        attr_byte: VgaAttrByte::new(bg, fg, blink),
-        buffer: unsafe { &mut *(VGA_BUFFER_ADDR as *mut VgaBuffer) },
-    };
+pub fn print_str(string: &str, bg_colour: VgaBgColour, fg_colour: VgaFgColour, blink: bool) {
+    let mut writer = Writer::new(bg_colour, fg_colour, blink);
     writer.write_string(string);
-}
-
-/// Write a character in VGA text mode.
-///
-/// UNSAFE: The raw pointer (and the offset) must be valid!
-pub unsafe fn putc_vga_text(
-    vga_buf: *mut u8,
-    offset: usize,
-    char: u8,
-    bg_colour: VgaBgColour,
-    fg_colour: VgaFgColour,
-    blink: bool,
-) {
-    *vga_buf.offset(offset as isize * 2) = char;
-    *vga_buf.offset((offset as isize * 2) + 1) = VgaAttrByte::new(bg_colour, fg_colour, blink).0;
 }
