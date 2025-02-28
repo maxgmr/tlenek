@@ -7,9 +7,9 @@ mod vga_text;
 
 use vga_text::{putc_vga_text, VgaBgColour, VgaFgColour, VGA_BUF_ADDR};
 
-static MSG: &[u8] = b"Tlenek v0.1.0";
+static MSG: &[u8] = b"Tlenek v0.1.0-alpha.1";
 const BG_COLOUR: VgaBgColour = VgaBgColour::Black;
-const FG_COLOUR: VgaFgColour = VgaFgColour::LightCyan;
+const FG_COLOUR: VgaFgColour = VgaFgColour::LightGreen;
 const BLINK: bool = false;
 
 /// Entry point.
