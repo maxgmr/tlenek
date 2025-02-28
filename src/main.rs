@@ -1,24 +1,25 @@
 #![no_std]
 #![no_main]
 
-use core::panic::PanicInfo;
+use core::{fmt::Write, panic::PanicInfo};
+use tlenek_core::vga_text::{VgaBgColour, VgaFgColour, WRITER};
 
-mod vga_text;
-
-use vga_text::{print_str, VgaBgColour, VgaFgColour};
-
-const MSG: &str = concat!(env!("CARGO_PKG_NAME"), " ", env!("CARGO_PKG_VERSION"));
-
-const BG_COLOUR: VgaBgColour = VgaBgColour::Black;
-const FG_COLOUR: VgaFgColour = VgaFgColour::LightGreen;
-const BLINK: bool = false;
+const VERSION_MSG: &str = concat!(env!("CARGO_PKG_NAME"), " ", env!("CARGO_PKG_VERSION"));
 
 /// Entry point.
 ///
 /// Use Linux conventions- make sure it's called `_start`
 #[no_mangle]
 pub extern "C" fn _start() -> ! {
-    print_str(MSG, BG_COLOUR, FG_COLOUR, BLINK);
+    WRITER.lock().write_str(VERSION_MSG).unwrap();
+    WRITER.lock().write_str("\n\n").unwrap();
+    WRITER.lock().set_bg(VgaBgColour::Blue);
+    WRITER.lock().set_fg(VgaFgColour::LightGreen);
+    WRITER.lock().write_str(":)").unwrap();
+    WRITER.lock().set_bg(VgaBgColour::default());
+    WRITER.lock().set_fg(VgaFgColour::LightRed);
+    WRITER.lock().write_str("\n").unwrap();
+    write!(WRITER.lock(), "1/2 = {}", 1.0 / 2.0).unwrap();
 
     #[allow(clippy::empty_loop)]
     loop {}
