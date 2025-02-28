@@ -1,3 +1,5 @@
+//! Write to the VGA buffer.
+
 use core::fmt;
 
 use lazy_static::lazy_static;
@@ -22,6 +24,7 @@ const BG_ATTR_OFFSET: u8 = 4;
 const FG_ATTR_OFFSET: u8 = 0;
 
 lazy_static! {
+    /// Writes to the VGA buffer.
     pub static ref WRITER: Mutex<Writer> = Mutex::new(Writer::new(
         VgaBgColour::default(),
         VgaFgColour::default(),
@@ -29,8 +32,10 @@ lazy_static! {
     ));
 }
 
+/// All the possible VGA foreground colours.
 #[derive(Debug, Default, Copy, Clone, PartialEq, Eq, PartialOrd, Ord, Hash)]
 #[repr(u8)]
+#[allow(missing_docs)]
 pub enum VgaFgColour {
     Black = 0x0,
     Blue = 0x1,
@@ -81,8 +86,10 @@ impl TryFrom<u8> for VgaFgColour {
     }
 }
 
+/// All the possible VGA backgrond colours.
 #[derive(Debug, Default, Copy, Clone, PartialEq, Eq, PartialOrd, Ord, Hash)]
 #[repr(u8)]
+#[allow(missing_docs)]
 pub enum VgaBgColour {
     #[default]
     Black = 0x0,
@@ -195,6 +202,11 @@ impl Writer {
             // all subsequent operations are safe.
             buffer: unsafe { &mut *(VGA_BUFFER_ADDR as *mut VgaBuffer) },
         }
+    }
+
+    /// Set the background colour, foreground colour, and blink.
+    pub fn set_attr(&mut self, bg_colour: VgaBgColour, fg_colour: VgaFgColour, blink: bool) {
+        self.attr = VgaAttr::new(bg_colour, fg_colour, blink);
     }
 
     /// Set the background colour to the given [VgaBgColour].
