@@ -1,6 +1,6 @@
 [package]
 name = "tlenek"
-version = "0.1.0-alpha.1"
+version = "0.1.0-alpha.2"
 authors = ["Max Gilmour <mgilmour@maxgmr.ca>"]
 edition = "2021"
 description = "A bare-bones operating system"
@@ -15,5 +15,16 @@ categories = []
 exclude = []
 include = []
 
+[lib]
+name = "tlenek_core"
+path = "src/lib.rs"
+
+[[bin]]
+name = "tlenek_bin"
+path = "src/main.rs"
+
 [dependencies]
 bootloader = "0.9"
+lazy_static = { version = "1.0", features = ["spin_no_std"] }
+spin = "0.5.2"
+volatile = "0.2.6"
