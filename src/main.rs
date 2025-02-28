@@ -7,7 +7,8 @@ mod vga_text;
 
 use vga_text::{print_str, VgaBgColour, VgaFgColour};
 
-static MSG: &str = "Tlenek v0.1.0-alpha.1";
+const MSG: &str = concat!(env!("CARGO_PKG_NAME"), " ", env!("CARGO_PKG_VERSION"));
+
 const BG_COLOUR: VgaBgColour = VgaBgColour::Black;
 const FG_COLOUR: VgaFgColour = VgaFgColour::LightGreen;
 const BLINK: bool = false;
