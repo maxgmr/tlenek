@@ -1,3 +1,5 @@
+use core::fmt;
+
 use volatile::Volatile;
 
 pub const VGA_BUFFER_ADDR: usize = 0xB8000;
@@ -124,6 +126,12 @@ impl Writer {
 
     fn new_line(&mut self) {
         todo!()
+    }
+}
+impl fmt::Write for Writer {
+    fn write_str(&mut self, s: &str) -> fmt::Result {
+        self.write_string(s);
+        Ok(())
     }
 }
 
