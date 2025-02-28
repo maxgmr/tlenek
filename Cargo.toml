@@ -16,3 +16,4 @@ exclude = []
 include = []
 
 [dependencies]
+bootloader = "0.9"
