@@ -1,8 +1,11 @@
 #![no_std]
 #![no_main]
 
-use core::{fmt::Write, panic::PanicInfo};
-use tlenek_core::vga_text::{VgaBgColour, VgaFgColour, WRITER};
+use core::panic::PanicInfo;
+use tlenek_core::{
+    print, println,
+    vga_text::{set_vga_attr, set_vga_bg, set_vga_blink, set_vga_fg, VgaBgColour, VgaFgColour},
+};
 
 const VERSION_MSG: &str = concat!(env!("CARGO_PKG_NAME"), " ", env!("CARGO_PKG_VERSION"));
 
@@ -11,18 +14,16 @@ const VERSION_MSG: &str = concat!(env!("CARGO_PKG_NAME"), " ", env!("CARGO_PKG_V
 /// Use Linux conventions- make sure it's called `_start`
 #[no_mangle]
 pub extern "C" fn _start() -> ! {
-    WRITER.lock().set_fg(VgaFgColour::LightGreen);
-    WRITER.lock().write_str(VERSION_MSG).unwrap();
-    WRITER.lock().write_str("\n").unwrap();
-    WRITER
-        .lock()
-        .set_attr(VgaBgColour::Blue, VgaFgColour::Red, true);
-    WRITER.lock().write_str(":)").unwrap();
-    WRITER
-        .lock()
-        .set_attr(VgaBgColour::default(), VgaFgColour::Pink, false);
-    WRITER.lock().write_str("\n\n").unwrap();
-    write!(WRITER.lock(), "1/2 = {}", 1.0 / 2.0).unwrap();
+    set_vga_fg(VgaFgColour::LightGreen);
+    println!("{}", VERSION_MSG);
+    set_vga_attr(VgaBgColour::Blue, VgaFgColour::Red, true);
+    print!(":)");
+    set_vga_bg(VgaBgColour::Black);
+    set_vga_blink(false);
+    println!();
+    println!();
+    set_vga_fg(VgaFgColour::Pink);
+    println!("1/2 = {}", 1.0 / 2.0);
 
     #[allow(clippy::empty_loop)]
     loop {}
@@ -30,7 +31,9 @@ pub extern "C" fn _start() -> ! {
 
 /// Called on panic.
 #[panic_handler]
-fn panic(_info: &PanicInfo) -> ! {
+fn panic(info: &PanicInfo) -> ! {
+    // print panic message!
+    println!("{}", info);
     // ...loop forever...
     loop {}
 }
