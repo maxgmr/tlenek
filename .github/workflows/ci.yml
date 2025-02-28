@@ -25,6 +25,9 @@ jobs:
       - name: Add rust-src
         run: rustup component add rust-src
 
+      - name: Install QEMU
+        run: apt install qemu-system
+
       - name: Set up QEMU
         uses: docker/setup-qemu-action@v3
 
