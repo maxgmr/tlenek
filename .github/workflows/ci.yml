@@ -22,9 +22,6 @@ jobs:
           override: true
           components: rustfmt, clippy
 
-      - name: Install bootimage
-        run: cargo install bootimage
-
       - name: Check formatting
         run: cargo fmt -- --check
 

@@ -1,5 +1,8 @@
 name: Security audit
 
+env:
+  CARGO_TERM_COLOR: always
+
 on:
   pull_request:
     branches:
