@@ -5,14 +5,14 @@
 #![reexport_test_harness_main = "test_main"]
 
 use core::panic::PanicInfo;
-#[cfg(test)]
-use tlenek_core::test_framework::{test_panic_handler, test_runner};
 #[cfg(not(test))]
 use tlenek_core::vga_text::{set_vga_attr, VgaBgColour};
 use tlenek_core::{
     println,
     vga_text::{set_vga_fg, VgaFgColour},
 };
+#[cfg(test)]
+use tlenek_core::{test_panic_handler, test_runner};
 
 const VERSION_MSG: &str = concat!(env!("CARGO_PKG_NAME"), " ", env!("CARGO_PKG_VERSION"));
 

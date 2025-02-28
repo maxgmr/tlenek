@@ -10,3 +10,5 @@ pub mod qemu;
 pub mod serial;
 pub mod test_framework;
 pub mod vga_text;
+
+pub use test_framework::{test_panic_handler, test_runner};
