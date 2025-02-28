@@ -1,17 +1,13 @@
-pub const VGA_BUF_ADDR: usize = 0xB8000;
+use volatile::Volatile;
 
-#[derive(Debug, Default, Copy, Clone, PartialEq, Eq, PartialOrd, Ord, Hash)]
-#[repr(transparent)]
-struct VgaAttrByte(u8);
-impl VgaAttrByte {
-    fn new(bg_colour: VgaBgColour, fg_colour: VgaFgColour, blink: bool) -> Self {
-        Self(
-            (if blink { 0b1000_0000 } else { 0b0000_0000 })
-                | ((bg_colour as u8) << 4)
-                | (fg_colour as u8),
-        )
-    }
-}
+pub const VGA_BUFFER_ADDR: usize = 0xB8000;
+const VGA_BUFFER_HEIGHT: usize = 25;
+const VGA_BUFFER_WIDTH: usize = 80;
+
+const PRINTABLE_RANGE_START: u8 = 0x20;
+const PRINTABLE_RANGE_END: u8 = 0x7E;
+
+const VGA_UNKNOWN_CHAR: u8 = 0xFE;
 
 #[derive(Debug, Default, Copy, Clone, PartialEq, Eq, PartialOrd, Ord, Hash)]
 #[repr(u8)]
@@ -57,6 +53,87 @@ impl From<VgaBgColour> for u8 {
     fn from(value: VgaBgColour) -> Self {
         value as u8
     }
+}
+
+#[derive(Debug, Default, Copy, Clone, PartialEq, Eq, PartialOrd, Ord, Hash)]
+#[repr(transparent)]
+struct VgaAttrByte(u8);
+impl VgaAttrByte {
+    fn new(bg_colour: VgaBgColour, fg_colour: VgaFgColour, blink: bool) -> Self {
+        Self(
+            (if blink { 0b1000_0000 } else { 0b0000_0000 })
+                | ((bg_colour as u8) << 4)
+                | (fg_colour as u8),
+        )
+    }
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+#[repr(C)]
+struct VgaChar {
+    text_byte: u8,
+    attr_byte: VgaAttrByte,
+}
+
+#[derive(Debug, Clone)]
+#[repr(transparent)]
+struct VgaBuffer {
+    chars: [[Volatile<VgaChar>; VGA_BUFFER_WIDTH]; VGA_BUFFER_HEIGHT],
+}
+
+#[derive(Debug)]
+pub struct Writer {
+    column_position: usize,
+    attr_byte: VgaAttrByte,
+    // We know that the VGA text buffer is valid for the whole runtime
+    buffer: &'static mut VgaBuffer,
+}
+impl Writer {
+    pub fn write_char(&mut self, byte: u8) {
+        match byte {
+            b'\n' => self.new_line(),
+            byte => {
+                if self.column_position >= VGA_BUFFER_WIDTH {
+                    self.new_line();
+                }
+
+                let row = VGA_BUFFER_HEIGHT - 1;
+                let col = self.column_position;
+
+                // Declare volatile to ensure the compiler never optimises away the writes
+                self.buffer.chars[row][col].write(VgaChar {
+                    text_byte: byte,
+                    attr_byte: self.attr_byte,
+                });
+
+                self.column_position += 1;
+            }
+        }
+    }
+
+    pub fn write_string(&mut self, s: &str) {
+        for byte in s.bytes() {
+            match byte {
+                // printable ASCII byte or newline
+                PRINTABLE_RANGE_START..=PRINTABLE_RANGE_END | b'\n' => self.write_char(byte),
+                // not part of printable ASCII range
+                _ => self.write_char(VGA_UNKNOWN_CHAR),
+            }
+        }
+    }
+
+    fn new_line(&mut self) {
+        todo!()
+    }
+}
+
+pub fn print_str(string: &str, bg: VgaBgColour, fg: VgaFgColour, blink: bool) {
+    let mut writer = Writer {
+        column_position: 0,
+        attr_byte: VgaAttrByte::new(bg, fg, blink),
+        buffer: unsafe { &mut *(VGA_BUFFER_ADDR as *mut VgaBuffer) },
+    };
+    writer.write_string(string);
 }
 
 /// Write a character in VGA text mode.
