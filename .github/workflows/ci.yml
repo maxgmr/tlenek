@@ -25,6 +25,9 @@ jobs:
       - name: Add rust-src
         run: rustup component add rust-src
 
+      - name: Set up QEMU
+        uses: docker/setup-qemu-action@v3
+
       - name: Check formatting
         run: cargo fmt -- --check
 
@@ -33,3 +36,6 @@ jobs:
 
       - name: Build
         run: cargo build --verbose
+
+      - name: Test
+        run: cargo test
