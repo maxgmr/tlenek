@@ -26,10 +26,9 @@ jobs:
         run: rustup component add rust-src
 
       - name: Install QEMU
-        run: apt install qemu-system
-
-      - name: Set up QEMU
-        uses: docker/setup-qemu-action@v3
+        run: |
+          sudo apt-get install qemu-system
+          sudo apt-get install -y qemu-system-x86
 
       - name: Check formatting
         run: cargo fmt -- --check
