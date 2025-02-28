@@ -10,7 +10,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Update dependencies to later versions.
 - Miri CI.
 
-## [0.1.0-alpha.4] - UNRELEASED
+## [0.1.0-alpha.4] - 2025-02-28
 
 ### Added
 
