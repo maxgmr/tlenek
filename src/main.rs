@@ -26,9 +26,6 @@ pub extern "C" fn _start() -> ! {
     println!("1/2 = {}", 1.0 / 2.0);
 
     panic!("I'm panicking because of how great things are!");
-
-    #[allow(clippy::empty_loop)]
-    loop {}
 }
 
 /// Called on panic.
