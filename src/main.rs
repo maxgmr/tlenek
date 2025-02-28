@@ -1,10 +1,17 @@
 #![no_std]
 #![no_main]
+#![feature(custom_test_frameworks)]
+#![test_runner(test_runner)]
+#![reexport_test_harness_main = "test_main"]
 
 use core::panic::PanicInfo;
+#[cfg(test)]
+use tlenek_core::test_framework::{test_panic_handler, test_runner};
+#[cfg(not(test))]
+use tlenek_core::vga_text::{set_vga_attr, VgaBgColour};
 use tlenek_core::{
-    print, println,
-    vga_text::{set_vga_attr, set_vga_bg, set_vga_blink, set_vga_fg, VgaBgColour, VgaFgColour},
+    println,
+    vga_text::{set_vga_fg, VgaFgColour},
 };
 
 const VERSION_MSG: &str = concat!(env!("CARGO_PKG_NAME"), " ", env!("CARGO_PKG_VERSION"));
@@ -16,19 +23,16 @@ const VERSION_MSG: &str = concat!(env!("CARGO_PKG_NAME"), " ", env!("CARGO_PKG_V
 pub extern "C" fn _start() -> ! {
     set_vga_fg(VgaFgColour::LightGreen);
     println!("{}", VERSION_MSG);
-    set_vga_attr(VgaBgColour::Blue, VgaFgColour::Red, true);
-    print!(":)");
-    set_vga_bg(VgaBgColour::Black);
-    set_vga_blink(false);
-    println!();
-    println!();
-    set_vga_fg(VgaFgColour::Pink);
-    println!("1/2 = {}", 1.0 / 2.0);
 
-    panic!("I'm panicking because of how great things are!");
+    #[cfg(test)]
+    test_main();
+
+    #[allow(clippy::empty_loop)]
+    loop {}
 }
 
 /// Called on panic.
+#[cfg(not(test))]
 #[panic_handler]
 fn panic(info: &PanicInfo) -> ! {
     // format & print panic message
@@ -36,4 +40,11 @@ fn panic(info: &PanicInfo) -> ! {
     println!("{}", info);
     // ...loop forever...
     loop {}
+}
+
+/// Called on test panic.
+#[cfg(test)]
+#[panic_handler]
+fn panic(info: &PanicInfo) -> ! {
+    test_panic_handler(info)
 }
