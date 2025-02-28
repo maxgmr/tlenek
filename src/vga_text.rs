@@ -25,7 +25,7 @@ const FG_ATTR_OFFSET: u8 = 0;
 
 lazy_static! {
     /// Writes to the VGA buffer.
-    pub static ref WRITER: Mutex<Writer> = Mutex::new(Writer::new(
+    static ref WRITER: Mutex<Writer> = Mutex::new(Writer::new(
         VgaBgColour::default(),
         VgaFgColour::default(),
         false
@@ -128,19 +128,15 @@ impl TryFrom<u8> for VgaBgColour {
 #[repr(transparent)]
 struct VgaAttr(u8);
 impl VgaAttr {
-    fn new(bg_colour: VgaBgColour, fg_colour: VgaFgColour, blink: bool) -> Self {
-        Self(
-            (if blink { 0b1000_0000 } else { 0b0000_0000 })
-                | ((bg_colour as u8) << 4)
-                | (fg_colour as u8),
-        )
+    fn new(bg: VgaBgColour, fg: VgaFgColour, blink: bool) -> Self {
+        Self((if blink { 0b1000_0000 } else { 0b0000_0000 }) | ((bg as u8) << 4) | (fg as u8))
     }
 
-    fn _bg(&self) -> VgaBgColour {
+    fn bg(&self) -> VgaBgColour {
         VgaBgColour::try_from((self.0 & BG_ATTR_MASK) >> BG_ATTR_OFFSET).unwrap()
     }
 
-    fn _fg(&self) -> VgaFgColour {
+    fn fg(&self) -> VgaFgColour {
         VgaFgColour::try_from((self.0 & FG_ATTR_MASK) >> FG_ATTR_OFFSET).unwrap()
     }
 
@@ -185,7 +181,7 @@ struct VgaBuffer {
 
 /// A VGA text writer.
 #[derive(Debug)]
-pub struct Writer {
+struct Writer {
     // Current position within the last row.
     column_position: usize,
     attr: VgaAttr,
@@ -193,54 +189,15 @@ pub struct Writer {
     buffer: &'static mut VgaBuffer,
 }
 impl Writer {
-    fn new(bg_colour: VgaBgColour, fg_colour: VgaFgColour, blink: bool) -> Self {
+    fn new(bg: VgaBgColour, fg: VgaFgColour, blink: bool) -> Self {
         Self {
             column_position: 0,
-            attr: VgaAttr::new(bg_colour, fg_colour, blink),
+            attr: VgaAttr::new(bg, fg, blink),
             // SAFETY: The reference points to the constant VGA_BUFFER_ADDR, so we know it's valid.
             // Rust's bounds checking ensures we can't accidentally write outside the buffer, so
             // all subsequent operations are safe.
             buffer: unsafe { &mut *(VGA_BUFFER_ADDR as *mut VgaBuffer) },
         }
-    }
-
-    /// Set the background colour, foreground colour, and blink.
-    pub fn set_attr(&mut self, bg_colour: VgaBgColour, fg_colour: VgaFgColour, blink: bool) {
-        self.attr = VgaAttr::new(bg_colour, fg_colour, blink);
-    }
-
-    /// Set the background colour to the given [VgaBgColour].
-    pub fn set_bg(&mut self, bg_colour: VgaBgColour) {
-        self.attr.set_bg(bg_colour);
-    }
-
-    /// Set the foreground colour to the given [VgaFgColour].
-    pub fn set_fg(&mut self, fg_colour: VgaFgColour) {
-        self.attr.set_fg(fg_colour);
-    }
-
-    /// Enable blink.
-    pub fn blink_on(&mut self) {
-        self.set_blink(true);
-    }
-
-    /// Disable blink.
-    pub fn blink_off(&mut self) {
-        self.set_blink(false);
-    }
-
-    /// Toggle blink.
-    pub fn blink_toggle(&mut self) {
-        if self.attr.blink() {
-            self.blink_off();
-        } else {
-            self.blink_on();
-        }
-    }
-
-    /// Set blink.
-    fn set_blink(&mut self, val: bool) {
-        self.attr.set_blink(val);
     }
 
     fn write_char(&mut self, byte: u8) {
@@ -305,4 +262,58 @@ impl fmt::Write for Writer {
         self.write_string(s);
         Ok(())
     }
+}
+
+/// Get the current [VgaBgColour].
+pub fn vga_bg() -> VgaBgColour {
+    WRITER.lock().attr.bg()
+}
+
+/// Get the current [VgaFgColour].
+pub fn vga_fg() -> VgaFgColour {
+    WRITER.lock().attr.fg()
+}
+
+/// Check if the VGA blink bit is set.
+pub fn vga_blink() -> bool {
+    WRITER.lock().attr.blink()
+}
+
+/// Set the VGA background colour to the given [VgaBgColour].
+pub fn set_vga_bg(bg: VgaBgColour) {
+    WRITER.lock().attr.set_bg(bg);
+}
+
+/// Set the VGA foreground colour to the given [VgaFgColour].
+pub fn set_vga_fg(fg: VgaFgColour) {
+    WRITER.lock().attr.set_fg(fg);
+}
+
+/// Set the VGA blink bit to the given value.
+pub fn set_vga_blink(blink: bool) {
+    WRITER.lock().attr.set_blink(blink);
+}
+
+/// Set the [VgaBgColour], the [VgaFgColour], and the VGA blink value.
+pub fn set_vga_attr(bg: VgaBgColour, fg: VgaFgColour, blink: bool) {
+    WRITER.lock().attr = VgaAttr::new(bg, fg, blink);
+}
+
+/// Prints to VGA buffer using format syntax.
+#[macro_export]
+macro_rules! print {
+    ($($arg:tt)*) => ($crate::vga_text::_print(format_args!($($arg)*)));
+}
+
+/// Prints to VGA buffer using format syntax with a newline.
+#[macro_export]
+macro_rules! println {
+    () => ($crate::print!("\n"));
+    ($($arg:tt)*) => ($crate::print!("{}\n", format_args!($($arg)*)));
+}
+
+#[doc(hidden)]
+pub fn _print(args: fmt::Arguments) {
+    use core::fmt::Write;
+    WRITER.lock().write_fmt(args).unwrap();
 }
