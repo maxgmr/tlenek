@@ -10,6 +10,7 @@ const PRINTABLE_RANGE_START: u8 = 0x20;
 const PRINTABLE_RANGE_END: u8 = 0x7E;
 
 const VGA_UNPRINTABLE: u8 = 0xFE;
+const VGA_WHITESPACE: u8 = 0x20;
 
 #[derive(Debug, Default, Copy, Clone, PartialEq, Eq, PartialOrd, Ord, Hash)]
 #[repr(u8)]
@@ -147,7 +148,14 @@ impl Writer {
     }
 
     fn clear_row(&mut self, row: usize) {
-        todo!();
+        let vga_whitepsace_char = VgaChar {
+            text_byte: VGA_WHITESPACE,
+            attr_byte: self.attr_byte,
+        };
+
+        for col in 0..VGA_BUFFER_WIDTH {
+            self.buffer.chars[row][col].write(vga_whitepsace_char);
+        }
     }
 }
 impl fmt::Write for Writer {
