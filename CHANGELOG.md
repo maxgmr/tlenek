@@ -10,7 +10,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Update dependencies to later versions.
 - Unit tests.
 
-## [0.1.0-alpha.2] - UNRELEASED
+## [UNRELEASED]
+
+### Added
+
+### Changed
+
+### Removed
+
+## [0.1.0-alpha.2] - 2025-02-28
 
 ### Added
 
