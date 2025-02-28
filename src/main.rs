@@ -11,14 +11,17 @@ const VERSION_MSG: &str = concat!(env!("CARGO_PKG_NAME"), " ", env!("CARGO_PKG_V
 /// Use Linux conventions- make sure it's called `_start`
 #[no_mangle]
 pub extern "C" fn _start() -> ! {
-    WRITER.lock().write_str(VERSION_MSG).unwrap();
-    WRITER.lock().write_str("\n\n").unwrap();
-    WRITER.lock().set_bg(VgaBgColour::Blue);
     WRITER.lock().set_fg(VgaFgColour::LightGreen);
-    WRITER.lock().write_str(":)").unwrap();
-    WRITER.lock().set_bg(VgaBgColour::default());
-    WRITER.lock().set_fg(VgaFgColour::LightRed);
+    WRITER.lock().write_str(VERSION_MSG).unwrap();
     WRITER.lock().write_str("\n").unwrap();
+    WRITER
+        .lock()
+        .set_attr(VgaBgColour::Blue, VgaFgColour::Red, true);
+    WRITER.lock().write_str(":)").unwrap();
+    WRITER
+        .lock()
+        .set_attr(VgaBgColour::default(), VgaFgColour::Pink, false);
+    WRITER.lock().write_str("\n\n").unwrap();
     write!(WRITER.lock(), "1/2 = {}", 1.0 / 2.0).unwrap();
 
     #[allow(clippy::empty_loop)]
