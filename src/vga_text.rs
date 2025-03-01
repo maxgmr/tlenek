@@ -317,3 +317,139 @@ pub fn _print(args: fmt::Arguments) {
     use core::fmt::Write;
     WRITER.lock().write_fmt(args).unwrap();
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    fn clear_buffer() {
+        for _ in 0..VGA_BUFFER_HEIGHT {
+            println!();
+        }
+    }
+
+    fn read_char(row: usize, col: usize) -> VgaChar {
+        WRITER.lock().buffer.chars[row][col].read()
+    }
+
+    #[test_case]
+    fn simple_println() {
+        println!("Hello, world!");
+    }
+
+    #[test_case]
+    fn many_println() {
+        for _ in 0..200 {
+            println!("ping!");
+        }
+        clear_buffer();
+    }
+
+    #[test_case]
+    fn println_appears_on_screen() {
+        let s = "Hello, world!";
+        println!("{}", s);
+        for (i, c) in s.chars().enumerate() {
+            let vga_char = read_char(VGA_BUFFER_HEIGHT - 2, i);
+            assert_eq!(char::from(vga_char.text_byte), c);
+        }
+        clear_buffer();
+    }
+
+    #[test_case]
+    fn print_wrap() {
+        let test_char = 'O';
+        let test_next_line_char = 'I';
+
+        for _ in 0..(VGA_BUFFER_WIDTH) {
+            print!("{}", test_char);
+        }
+        print!("{}", test_next_line_char);
+
+        for i in 0..VGA_BUFFER_WIDTH {
+            let vga_char = read_char(VGA_BUFFER_HEIGHT - 2, i);
+            assert_eq!(char::from(vga_char.text_byte), test_char);
+        }
+        let vga_char = read_char(VGA_BUFFER_HEIGHT - 1, 0);
+        assert_eq!(char::from(vga_char.text_byte), test_next_line_char);
+        clear_buffer();
+    }
+
+    #[test_case]
+    fn set_get_attr() {
+        set_vga_bg(VgaBgColour::Red);
+        assert_eq!(vga_bg(), VgaBgColour::Red);
+
+        set_vga_fg(VgaFgColour::LightCyan);
+        assert_eq!(vga_fg(), VgaFgColour::LightCyan);
+
+        set_vga_blink(true);
+        assert!(vga_blink());
+
+        set_vga_attr(VgaBgColour::Brown, VgaFgColour::Pink, false);
+        assert_eq!(vga_bg(), VgaBgColour::Brown);
+        assert_eq!(vga_fg(), VgaFgColour::Pink);
+        assert!(!vga_blink());
+    }
+
+    #[test_case]
+    fn vga_attr_new() {
+        let expected: u8 = 0b1001_1010;
+        let bg: VgaBgColour = VgaBgColour::try_from(0b0001).unwrap();
+        let fg: VgaFgColour = VgaFgColour::try_from(0b1010).unwrap();
+        let blink: bool = true;
+        let vga_attr = VgaAttr::new(bg, fg, blink);
+        assert_eq!(vga_attr.0, expected);
+    }
+
+    #[test_case]
+    fn vga_attr_fg() {
+        let expected: u8 = 0b0000_1111;
+        let fg: VgaFgColour = VgaFgColour::try_from(0b1111).unwrap();
+        let bg: VgaBgColour = VgaBgColour::try_from(0b0000).unwrap();
+        let mut vga_attr = VgaAttr::new(bg, fg, false);
+        assert_eq!(vga_attr.0, expected);
+
+        let expected: u8 = 0b0000_1010;
+        vga_attr.set_fg(VgaFgColour::try_from(0b1010).unwrap());
+        assert_eq!(vga_attr.0, expected);
+    }
+
+    #[test_case]
+    fn vga_attr_bg() {
+        let expected: u8 = 0b0111_0000;
+        let fg: VgaFgColour = VgaFgColour::try_from(0b0000).unwrap();
+        let bg: VgaBgColour = VgaBgColour::try_from(0b0111).unwrap();
+        let mut vga_attr = VgaAttr::new(bg, fg, false);
+        assert_eq!(vga_attr.0, expected);
+
+        let expected: u8 = 0b0101_0000;
+        vga_attr.set_bg(VgaBgColour::try_from(0b0101).unwrap());
+        assert_eq!(vga_attr.0, expected);
+    }
+
+    #[test_case]
+    fn vga_attr_blink() {
+        let expected: u8 = 0b1000_0000;
+        let mut vga_attr = VgaAttr::new(
+            VgaBgColour::try_from(0).unwrap(),
+            VgaFgColour::try_from(0).unwrap(),
+            true,
+        );
+        assert_eq!(vga_attr.0, expected);
+
+        let expected: u8 = 0b0000_0000;
+        vga_attr.set_blink(false);
+        assert_eq!(vga_attr.0, expected);
+    }
+
+    #[test_case]
+    fn bad_vga_fg() {
+        let _ = VgaFgColour::try_from(0x10).unwrap_err();
+    }
+
+    #[test_case]
+    fn bad_vga_bg() {
+        let _ = VgaBgColour::try_from(0x8).unwrap_err();
+    }
+}

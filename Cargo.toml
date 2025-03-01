@@ -1,6 +1,6 @@
 [package]
 name = "tlenek"
-version = "0.1.0-alpha.3"
+version = "0.1.0-alpha.4"
 authors = ["Max Gilmour <mgilmour@maxgmr.ca>"]
 edition = "2021"
 description = "A bare-bones operating system"
@@ -15,6 +15,18 @@ categories = []
 exclude = []
 include = []
 
+[package.metadata.bootimage]
+test-args = [
+  "-device",
+  "isa-debug-exit,iobase=0xf4,iosize=0x04", # specify I/O port
+  "-serial",
+  "stdio",                                  # set serial to output to stdout
+  "-display",
+  "none",                                   # no QEMU display
+]
+test-success-exit-code = 33 # (0x10 << 1) | 1
+test-timeout = 300
+
 [lib]
 name = "tlenek_core"
 path = "src/lib.rs"
@@ -24,7 +36,9 @@ name = "tlenek_bin"
 path = "src/main.rs"
 
 [dependencies]
-bootloader = "0.9"
+bootloader = "0.9.30"
 lazy_static = { version = "1.0", features = ["spin_no_std"] }
 spin = "0.5.2"
-volatile = "0.2.6"
+uart_16550 = "0.2.19"
+volatile = "0.2.7"
+x86_64 = "0.14.13"

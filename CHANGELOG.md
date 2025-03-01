@@ -8,8 +8,18 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Planned]
 
 - Update dependencies to later versions.
-- Unit tests.
 - Miri CI.
+
+## [0.1.0-alpha.4] - 2025-02-28
+
+### Added
+
+- Testing framework.
+- Serial port.
+
+### Changed
+
+### Removed
 
 ## [0.1.0-alpha.3] - 2025-02-28
 
@@ -18,8 +28,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - `println!` VGA write functionality.
 - `panic!` messages.
 - API for getting and setting VGA attributes.
-
-### Changed
 
 ### Removed
 
