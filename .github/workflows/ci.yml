@@ -25,6 +25,12 @@ jobs:
       - name: Add rust-src
         run: rustup component add rust-src
 
+      - name: Install bootimage
+        run: cd && cargo install bootimage && cd -
+
+      - name: Add LLVM tools preview
+        run: rustup component add llvm-tools-preview
+
       - name: Install QEMU
         run: |
           sudo apt-get update
