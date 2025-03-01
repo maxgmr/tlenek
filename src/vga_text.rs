@@ -1,6 +1,6 @@
 //! Write to the VGA buffer.
 
-use core::fmt;
+use core::{default::Default, fmt};
 
 use lazy_static::lazy_static;
 use spin::Mutex;
@@ -124,7 +124,7 @@ impl TryFrom<u8> for VgaBgColour {
     }
 }
 
-#[derive(Debug, Default, Copy, Clone, PartialEq, Eq, PartialOrd, Ord, Hash)]
+#[derive(Debug, Copy, Clone, PartialEq, Eq, PartialOrd, Ord, Hash)]
 #[repr(transparent)]
 struct VgaAttr(u8);
 impl VgaAttr {
@@ -163,6 +163,11 @@ impl VgaAttr {
     // Clear the bits of the given mask, then write those bits with the given value
     fn overwrite_mask_offset(&mut self, mask: u8, offset: u8, value: u8) {
         *self = Self((self.0 & !mask) | (value << offset))
+    }
+}
+impl Default for VgaAttr {
+    fn default() -> Self {
+        Self::new(VgaBgColour::default(), VgaFgColour::default(), false)
     }
 }
 
@@ -297,6 +302,11 @@ pub fn set_vga_blink(blink: bool) {
 /// Set the [VgaBgColour], the [VgaFgColour], and the VGA blink value.
 pub fn set_vga_attr(bg: VgaBgColour, fg: VgaFgColour, blink: bool) {
     WRITER.lock().attr = VgaAttr::new(bg, fg, blink);
+}
+
+/// Set the VGA text attribute to the default values.
+pub fn set_default_vga_attr() {
+    WRITER.lock().attr = VgaAttr::default();
 }
 
 /// Prints to VGA buffer using format syntax.
