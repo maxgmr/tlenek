@@ -19,6 +19,7 @@ lazy_static! {
         unsafe {
         idt.double_fault.set_handler_fn(double_fault_handler).set_stack_index(DOUBLE_FAULT_IST_INDEX);
         }
+        idt.machine_check.set_handler_fn(machine_check_handler);
 
         idt
     };
@@ -28,6 +29,12 @@ lazy_static! {
 /// exception.
 pub fn init_idt() {
     IDT.load();
+}
+
+/// Handler for breakpoints.
+extern "x86-interrupt" fn breakpoint_handler(stack_frame: InterruptStackFrame) {
+    exception_title();
+    println!("BREAKPOINT\n{:#?}", stack_frame);
 }
 
 /// Handler for double faults. Invoked when the CPU fails to invoke an exception handler. Used to
@@ -42,10 +49,11 @@ extern "x86-interrupt" fn double_fault_handler(
     panic!("DOUBLE FAULT\n{:#?}", stack_frame);
 }
 
-/// Handler for breakpoints.
-extern "x86-interrupt" fn breakpoint_handler(stack_frame: InterruptStackFrame) {
+/// Handler for machine check. Unrecoverable- invoked when the processor detects internal errors
+/// (bad memory, bus errors, cache errors, etc.).
+extern "x86-interrupt" fn machine_check_handler(stack_frame: InterruptStackFrame) -> ! {
     exception_title();
-    println!("BREAKPOINT\n{:#?}", stack_frame);
+    panic!("MACHINE_CHECK\n{:#?}", stack_frame)
 }
 
 /// Print "EXCEPTION" in nice scary red text.
