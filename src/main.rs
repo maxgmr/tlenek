@@ -8,7 +8,7 @@ use core::panic::PanicInfo;
 #[cfg(not(test))]
 use tlenek_core::vga_text::VgaBgColour;
 use tlenek_core::{
-    print, println,
+    init, print, println,
     vga_text::{
         set_default_vga_attr, set_vga_attr, set_vga_fg, vga_bg, vga_blink, vga_fg, VgaFgColour,
     },
@@ -23,6 +23,8 @@ const VERSION_MSG: &str = concat!(env!("CARGO_PKG_NAME"), " ", env!("CARGO_PKG_V
 /// Use Linux conventions- make sure it's called `_start`
 #[no_mangle]
 pub extern "C" fn _start() -> ! {
+    init();
+
     welcome();
 
     #[cfg(test)]
