@@ -6,10 +6,12 @@
 
 use core::panic::PanicInfo;
 #[cfg(not(test))]
-use tlenek_core::vga_text::{set_vga_attr, VgaBgColour};
+use tlenek_core::vga_text::VgaBgColour;
 use tlenek_core::{
     print, println,
-    vga_text::{set_default_vga_attr, set_vga_fg, VgaFgColour},
+    vga_text::{
+        set_default_vga_attr, set_vga_attr, set_vga_fg, vga_bg, vga_blink, vga_fg, VgaFgColour,
+    },
 };
 #[cfg(test)]
 use tlenek_core::{test_panic_handler, test_runner};
@@ -50,10 +52,17 @@ fn panic(info: &PanicInfo) -> ! {
 
 /// Friendly welcome message.
 fn welcome() {
+    let old_bg = vga_bg();
+    let old_fg = vga_fg();
+    let old_blink = vga_blink();
+
     set_default_vga_attr();
     print!("Welcome to ");
     set_vga_fg(VgaFgColour::LightGreen);
     print!("{}", VERSION_MSG);
     set_default_vga_attr();
     println!("!");
+
+    // Clean up after yourself!
+    set_vga_attr(old_bg, old_fg, old_blink);
 }
