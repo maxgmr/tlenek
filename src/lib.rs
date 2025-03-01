@@ -7,6 +7,7 @@
 #![test_runner(test_framework::test_runner)]
 #![reexport_test_harness_main = "test_main"]
 
+pub mod gdt;
 pub mod interrupts;
 pub mod qemu;
 pub mod serial;
@@ -17,6 +18,7 @@ pub use test_framework::{test_panic_handler, test_runner};
 
 /// General initialisation routines.
 pub fn init() {
+    gdt::init();
     interrupts::init_idt();
 }
 
