@@ -3,7 +3,7 @@
 use core::panic::PanicInfo;
 
 #[cfg(test)]
-use bootloader::{entry_point, BootInfo};
+use bootloader::BootInfo;
 
 use crate::{
     hlt_loop,
