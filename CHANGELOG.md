@@ -21,6 +21,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Changed
 
 - Welcome message.
+- Changed wait to halt loop for more efficient waiting.
 
 ## [0.1.0-alpha.4] - 2025-02-28
 
