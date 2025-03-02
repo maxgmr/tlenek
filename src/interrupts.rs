@@ -6,6 +6,7 @@ use pic8259::ChainedPics;
 use spin;
 use x86_64::{
     instructions::port::Port,
+    registers,
     structures::idt::{InterruptDescriptorTable, InterruptStackFrame},
 };
 
@@ -51,6 +52,7 @@ lazy_static! {
         let mut idt = InterruptDescriptorTable::new();
 
         idt.divide_error.set_handler_fn(divide_error_handler);
+        idt.debug.set_handler_fn(debug_handler);
         idt.breakpoint.set_handler_fn(breakpoint_handler);
         // UNSAFE: This is safe because `DOUBLE_FAULT_IST_INDEX` is valid and not already used for
         // another exception.
@@ -80,7 +82,76 @@ pub fn init_idt() {
 
 /// Handler for division error.
 extern "x86-interrupt" fn divide_error_handler(stack_frame: InterruptStackFrame) {
-    generic_fault_handler(stack_frame);
+    generic_fault_handler(stack_frame, "DIVIDE ERROR");
+}
+
+/// Handler for debug.
+/// Logic from [OSDev Wiki](https://wiki.osdev.org/Exceptions#Debug)
+extern "x86-interrupt" fn debug_handler(stack_frame: InterruptStackFrame) {
+    let exception_name = "DEBUG";
+
+    use registers::debug::Dr6Flags;
+    use registers::debug::Dr7Flags;
+
+    let dr6 = registers::debug::Dr6::read();
+    let dr7 = registers::debug::Dr7::read().flags();
+
+    // This is super ugly...
+    if dr6.contains(Dr6Flags::ACCESS_DETECTED) {
+        // Fault: Debug register access violation.
+        generic_fault_handler(stack_frame, exception_name);
+    } else if dr6.contains(Dr6Flags::TRAP0) {
+        if !dr7.contains(Dr7Flags::LOCAL_BREAKPOINT_0_ENABLE)
+            && !dr7.contains(Dr7Flags::GLOBAL_BREAKPOINT_0_ENABLE)
+        {
+            // Fault: Execute
+            generic_fault_handler(stack_frame, exception_name);
+        } else {
+            // Trap: write or read/write
+            generic_trap_handler(stack_frame, exception_name);
+        }
+    } else if dr6.contains(Dr6Flags::TRAP1) {
+        if !dr7.contains(Dr7Flags::LOCAL_BREAKPOINT_1_ENABLE)
+            && !dr7.contains(Dr7Flags::GLOBAL_BREAKPOINT_1_ENABLE)
+        {
+            // Fault: Execute
+            generic_fault_handler(stack_frame, exception_name);
+        } else {
+            // Trap: write or read/write
+            generic_trap_handler(stack_frame, exception_name);
+        }
+    } else if dr6.contains(Dr6Flags::TRAP2) {
+        if !dr7.contains(Dr7Flags::LOCAL_BREAKPOINT_2_ENABLE)
+            && !dr7.contains(Dr7Flags::GLOBAL_BREAKPOINT_2_ENABLE)
+        {
+            // Fault: Execute
+            generic_fault_handler(stack_frame, exception_name);
+        } else {
+            // Trap: write or read/write
+            generic_trap_handler(stack_frame, exception_name);
+        }
+    } else if dr6.contains(Dr6Flags::TRAP3) {
+        if !dr7.contains(Dr7Flags::LOCAL_BREAKPOINT_3_ENABLE)
+            && !dr7.contains(Dr7Flags::GLOBAL_BREAKPOINT_2_ENABLE)
+        {
+            // Fault: Execute
+            generic_fault_handler(stack_frame, exception_name);
+        } else {
+            // Trap: write or read/write
+            generic_trap_handler(stack_frame, exception_name);
+        }
+    } else if dr6.contains(Dr6Flags::STEP) {
+        // Trap: Single-step
+        generic_trap_handler(stack_frame, exception_name);
+    } else if dr6.contains(Dr6Flags::SWITCH) {
+        // Trap: Task-switch
+        generic_trap_handler(stack_frame, exception_name);
+    }
+
+    // Clear DR6
+    unsafe {
+        core::arch::asm!("mov dr6, {}", in(reg) 0_u64);
+    }
 }
 
 /// Handler for breakpoints.
@@ -109,12 +180,18 @@ extern "x86-interrupt" fn machine_check_handler(stack_frame: InterruptStackFrame
 }
 
 /// Generic behaviour for fault errors (print exception on debug only, else do nothing)
-fn generic_fault_handler(_stack_frame: InterruptStackFrame) {
+fn generic_fault_handler(_stack_frame: InterruptStackFrame, exception_name: &'static str) {
     #[cfg(debug_assertions)]
     {
         exception_title();
-        println!("DIVIDE ERROR\n{:#?}", _stack_frame);
+        println!("{}\n{:#?}", exception_name, _stack_frame);
     }
+}
+
+/// Generic behaviour for trap errors (print exception and continue)
+fn generic_trap_handler(stack_frame: InterruptStackFrame, exception_name: &'static str) {
+    exception_title();
+    println!("{}\n{:#?}", exception_name, stack_frame);
 }
 
 /// Handler for the hardware timer interrupt.
