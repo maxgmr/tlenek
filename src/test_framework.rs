@@ -34,7 +34,7 @@ pub fn test_runner(tests: &[&dyn Testable]) {
 }
 
 /// Displays failure and panic msg.
-pub fn test_panic_handler(info: &PanicInfo) -> ! {
+pub fn test_panic_handler(info: &PanicInfo<'_>) -> ! {
     serial_println!("[FAIL]\n");
     serial_println!("Error: {}\n", info);
     exit_qemu(QemuExitCode::Failure);

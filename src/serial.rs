@@ -19,7 +19,7 @@ lazy_static! {
 }
 
 #[doc(hidden)]
-pub fn _print(args: fmt::Arguments) {
+pub fn _print(args: fmt::Arguments<'_>) {
     interrupts::without_interrupts(|| {
         SERIAL1.lock().write_fmt(args).expect("serial print failed");
     });
