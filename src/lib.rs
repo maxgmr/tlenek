@@ -1,5 +1,5 @@
 //! Core library for the [tlenek](https://github.com/maxgmr/tlenek) x86_64 operating system.
-#![warn(missing_docs)]
+#![warn(missing_docs, missing_debug_implementations, rust_2018_idioms)]
 #![no_std]
 #![cfg_attr(test, no_main)]
 #![feature(abi_x86_interrupt)]
@@ -9,6 +9,7 @@
 
 pub mod gdt;
 pub mod interrupts;
+pub mod memory;
 pub mod qemu;
 pub mod serial;
 pub mod test_framework;
