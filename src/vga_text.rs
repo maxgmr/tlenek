@@ -10,7 +10,8 @@ use spin::Mutex;
 use volatile::Volatile;
 use x86_64::instructions::interrupts;
 
-const VGA_BUFFER_ADDR: usize = 0xB8000;
+/// The identity-mapped VGA buffer page.
+pub const VGA_BUFFER_ADDR: usize = 0xB8000;
 const VGA_BUFFER_HEIGHT: usize = 25;
 const VGA_BUFFER_WIDTH: usize = 80;
 

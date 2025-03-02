@@ -25,17 +25,28 @@ entry_point!(kernel_main);
 
 /// Entry point.
 fn kernel_main(boot_info: &'static BootInfo) -> ! {
-    init();
+    use x86_64::structures::paging::Translate;
 
+    init();
     welcome();
 
     let phys_mem_offset = x86_64::VirtAddr::new(boot_info.physical_memory_offset);
-    let lvl_4_table = unsafe { tlenek_core::memory::active_level_4_table(phys_mem_offset) };
+    let mapper = unsafe { tlenek_core::memory::init(phys_mem_offset) };
 
-    for (i, entry) in lvl_4_table.iter().enumerate() {
-        if !entry.is_unused() {
-            println!("Level 4 Entry {}: {:?}", i, entry);
-        }
+    let addresses = [
+        tlenek_core::vga_text::VGA_BUFFER_ADDR as u64,
+        // some code page
+        0x201008,
+        // some stack page
+        0x0100_0020_1A10,
+        // virtual address mapped to physical address 0
+        boot_info.physical_memory_offset,
+    ];
+
+    for &address in &addresses {
+        let virt = x86_64::VirtAddr::new(address);
+        let phys = mapper.translate_addr(virt);
+        println!("{:?} -> {:?}", virt, phys);
     }
 
     #[cfg(test)]
