@@ -2,6 +2,9 @@
 
 use core::panic::PanicInfo;
 
+#[cfg(test)]
+use bootloader::{entry_point, BootInfo};
+
 use crate::{
     hlt_loop,
     qemu::{exit_qemu, QemuExitCode},
@@ -39,10 +42,15 @@ pub fn test_panic_handler(info: &PanicInfo) -> ! {
     hlt_loop();
 }
 
+#[allow(missing_docs)]
+mod test_entry_point {
+    #[cfg(test)]
+    bootloader::entry_point!(super::test_kernel_main);
+}
+
 /// Test entry point.
 #[cfg(test)]
-#[no_mangle]
-pub extern "C" fn _start() -> ! {
+fn test_kernel_main(_boot_info: &'static BootInfo) -> ! {
     super::init();
     super::test_main();
     hlt_loop();
