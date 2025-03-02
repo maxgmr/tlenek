@@ -3,6 +3,7 @@
 use core::panic::PanicInfo;
 
 use crate::{
+    hlt_loop,
     qemu::{exit_qemu, QemuExitCode},
     serial_print, serial_println,
 };
@@ -35,9 +36,7 @@ pub fn test_panic_handler(info: &PanicInfo) -> ! {
     serial_println!("Error: {}\n", info);
     exit_qemu(QemuExitCode::Failure);
 
-    // Compiler doesn't know we just exited QEMU
-    #[allow(clippy::empty_loop)]
-    loop {}
+    hlt_loop();
 }
 
 /// Test entry point.
@@ -45,12 +44,8 @@ pub fn test_panic_handler(info: &PanicInfo) -> ! {
 #[no_mangle]
 pub extern "C" fn _start() -> ! {
     super::init();
-
     super::test_main();
-
-    // The compiler doesn't know QEMU exits after testing.
-    #[allow(clippy::empty_loop)]
-    loop {}
+    hlt_loop();
 }
 
 /// Test panic handler.

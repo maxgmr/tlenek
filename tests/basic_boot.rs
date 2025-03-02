@@ -6,15 +6,12 @@
 
 use core::panic::PanicInfo;
 
-use tlenek_core::{println, test_panic_handler};
+use tlenek_core::{hlt_loop, println, test_panic_handler};
 
 #[no_mangle]
 pub extern "C" fn _start() -> ! {
     test_main();
-
-    // The compiler doesn't know QEMU exits after testing
-    #[allow(clippy::empty_loop)]
-    loop {}
+    hlt_loop();
 }
 
 // This test is important because it's called in a basic environment without any initialisation

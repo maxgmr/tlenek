@@ -7,6 +7,7 @@ use core::panic::PanicInfo;
 use lazy_static::lazy_static;
 use tlenek_core::{
     gdt::{self, DOUBLE_FAULT_IST_INDEX},
+    hlt_loop,
     qemu::{exit_qemu, QemuExitCode},
     serial_print, serial_println,
 };
@@ -34,9 +35,7 @@ extern "x86-interrupt" fn test_double_fault_handler(
     serial_println!("[ok]");
     exit_qemu(QemuExitCode::Success);
 
-    // Compiler doesn't know we just exited!
-    #[allow(clippy::empty_loop)]
-    loop {}
+    hlt_loop();
 }
 
 #[no_mangle]

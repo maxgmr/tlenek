@@ -25,6 +25,13 @@ pub fn init() {
     x86_64::instructions::interrupts::enable();
 }
 
+/// Halt the CPU until the next interrupt arrives. Thin wrapper around the assembly instruction.
+pub fn hlt_loop() -> ! {
+    loop {
+        x86_64::instructions::hlt();
+    }
+}
+
 #[cfg(test)]
 mod tests {
     #[test_case]

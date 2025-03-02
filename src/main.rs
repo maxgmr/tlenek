@@ -8,7 +8,7 @@ use core::panic::PanicInfo;
 #[cfg(not(test))]
 use tlenek_core::vga_text::VgaBgColour;
 use tlenek_core::{
-    init, print, println,
+    hlt_loop, init, print, println,
     vga_text::{
         set_default_vga_attr, set_vga_attr, set_vga_fg, vga_bg, vga_blink, vga_fg, VgaFgColour,
     },
@@ -30,8 +30,7 @@ pub extern "C" fn _start() -> ! {
     #[cfg(test)]
     test_main();
 
-    #[allow(clippy::empty_loop)]
-    loop {}
+    hlt_loop();
 }
 
 /// Called on panic.
@@ -42,7 +41,7 @@ fn panic(info: &PanicInfo) -> ! {
     set_vga_attr(VgaBgColour::default(), VgaFgColour::LightRed, false);
     println!("{}", info);
     // ...loop forever...
-    loop {}
+    hlt_loop();
 }
 
 /// Called on test panic.
