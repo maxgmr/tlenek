@@ -2,9 +2,14 @@
 
 use x86_64::{
     registers::control::Cr3,
-    structures::paging::{page_table::FrameError, OffsetPageTable, PageTable},
+    structures::paging::{
+        FrameAllocator, Mapper, OffsetPageTable, Page, PageTable, PageTableFlags, PhysFrame,
+        Size4KiB,
+    },
     PhysAddr, VirtAddr,
 };
+
+use super::vga_text::VGA_BUFFER_ADDR;
 
 /// Initialise a new [OffsetPageTable].
 ///
@@ -32,4 +37,21 @@ unsafe fn active_level_4_table(physical_memory_offset: VirtAddr) -> &'static mut
     let page_table_ptr: *mut PageTable = virt.as_mut_ptr();
 
     &mut *page_table_ptr // unsafe
+}
+
+/// Create an example mapping for the given page to the physical VGA text buffer frame.
+pub fn create_example_mapping(
+    page: Page,
+    mapper: &mut OffsetPageTable,
+    frame_allocator: &mut impl FrameAllocator<Size4KiB>,
+) {
+    let frame = PhysFrame::containing_address(PhysAddr::new(VGA_BUFFER_ADDR.try_into().unwrap()));
+    let flags = PageTableFlags::PRESENT | PageTableFlags::WRITABLE;
+
+    let map_to_result = unsafe {
+        // TODO
+        mapper.map_to(page, frame, flags, frame_allocator)
+    };
+
+    map_to_result.expect("map_to failed :(").flush();
 }
