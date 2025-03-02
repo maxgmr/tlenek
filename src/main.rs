@@ -29,6 +29,15 @@ fn kernel_main(boot_info: &'static BootInfo) -> ! {
 
     welcome();
 
+    let phys_mem_offset = x86_64::VirtAddr::new(boot_info.physical_memory_offset);
+    let lvl_4_table = unsafe { tlenek_core::memory::active_level_4_table(phys_mem_offset) };
+
+    for (i, entry) in lvl_4_table.iter().enumerate() {
+        if !entry.is_unused() {
+            println!("Level 4 Entry {}: {:?}", i, entry);
+        }
+    }
+
     #[cfg(test)]
     test_main();
 
