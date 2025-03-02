@@ -50,6 +50,7 @@ lazy_static! {
 
         let mut idt = InterruptDescriptorTable::new();
 
+        idt.divide_error.set_handler_fn(divide_error_handler);
         idt.breakpoint.set_handler_fn(breakpoint_handler);
         // UNSAFE: This is safe because `DOUBLE_FAULT_IST_INDEX` is valid and not already used for
         // another exception.
@@ -77,6 +78,11 @@ pub fn init_idt() {
     IDT.load();
 }
 
+/// Handler for division error.
+extern "x86-interrupt" fn divide_error_handler(stack_frame: InterruptStackFrame) {
+    generic_fault_handler(stack_frame);
+}
+
 /// Handler for breakpoints.
 extern "x86-interrupt" fn breakpoint_handler(stack_frame: InterruptStackFrame) {
     exception_title();
@@ -100,6 +106,15 @@ extern "x86-interrupt" fn double_fault_handler(
 extern "x86-interrupt" fn machine_check_handler(stack_frame: InterruptStackFrame) -> ! {
     exception_title();
     panic!("MACHINE_CHECK\n{:#?}", stack_frame)
+}
+
+/// Generic behaviour for fault errors (print exception on debug only, else do nothing)
+fn generic_fault_handler(_stack_frame: InterruptStackFrame) {
+    #[cfg(debug_assertions)]
+    {
+        exception_title();
+        println!("DIVIDE ERROR\n{:#?}", _stack_frame);
+    }
 }
 
 /// Handler for the hardware timer interrupt.
