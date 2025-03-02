@@ -7,8 +7,21 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Planned]
 
-- Update dependencies to later versions.
+- Update dependencies.
 - Miri CI.
+
+## [0.1.0-alpha.5] - 2025-03-01
+
+### Added
+
+- Keyboard input.
+- Basic exception handling.
+- Timer interrupts.
+
+### Changed
+
+- Welcome message.
+- Changed wait to halt loop for more efficient waiting.
 
 ## [0.1.0-alpha.4] - 2025-02-28
 
@@ -16,10 +29,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - Testing framework.
 - Serial port.
-
-### Changed
-
-### Removed
 
 ## [0.1.0-alpha.3] - 2025-02-28
 

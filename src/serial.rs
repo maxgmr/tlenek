@@ -1,10 +1,11 @@
 //! Serial port functionality.
 
-use core::fmt;
+use core::fmt::{self, Write};
 
 use lazy_static::lazy_static;
 use spin::Mutex;
 use uart_16550::SerialPort;
+use x86_64::instructions::interrupts;
 
 const SERIAL1_PORT: u16 = 0x03F8;
 
@@ -19,8 +20,9 @@ lazy_static! {
 
 #[doc(hidden)]
 pub fn _print(args: fmt::Arguments) {
-    use fmt::Write;
-    SERIAL1.lock().write_fmt(args).expect("serial print failed");
+    interrupts::without_interrupts(|| {
+        SERIAL1.lock().write_fmt(args).expect("serial print failed");
+    });
 }
 
 /// Prints to host through serial interface.

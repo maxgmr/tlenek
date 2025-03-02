@@ -1,10 +1,14 @@
 //! Write to the VGA buffer.
 
-use core::fmt;
+use core::{
+    default::Default,
+    fmt::{self, Write},
+};
 
 use lazy_static::lazy_static;
 use spin::Mutex;
 use volatile::Volatile;
+use x86_64::instructions::interrupts;
 
 const VGA_BUFFER_ADDR: usize = 0xB8000;
 const VGA_BUFFER_HEIGHT: usize = 25;
@@ -15,6 +19,7 @@ const PRINTABLE_RANGE_END: u8 = 0x7E;
 
 const VGA_UNPRINTABLE: u8 = 0xFE;
 const VGA_WHITESPACE: u8 = 0x20;
+const BACKSPACE_BYTE: u8 = 0x08;
 
 const BLINK_ATTR_MASK: u8 = 0b1000_0000;
 const BG_ATTR_MASK: u8 = 0b0111_0000;
@@ -22,6 +27,21 @@ const FG_ATTR_MASK: u8 = 0b0000_1111;
 const BLINK_ATTR_OFFSET: u8 = 7;
 const BG_ATTR_OFFSET: u8 = 4;
 const FG_ATTR_OFFSET: u8 = 0;
+
+const TAB_WIDTH: usize = 4;
+
+/// Prints to VGA buffer using format syntax.
+#[macro_export]
+macro_rules! print {
+    ($($arg:tt)*) => ($crate::vga_text::_print(format_args!($($arg)*)));
+}
+
+/// Prints to VGA buffer using format syntax with a newline.
+#[macro_export]
+macro_rules! println {
+    () => ($crate::print!("\n"));
+    ($($arg:tt)*) => ($crate::print!("{}\n", format_args!($($arg)*)));
+}
 
 lazy_static! {
     /// Writes to the VGA buffer.
@@ -124,7 +144,7 @@ impl TryFrom<u8> for VgaBgColour {
     }
 }
 
-#[derive(Debug, Default, Copy, Clone, PartialEq, Eq, PartialOrd, Ord, Hash)]
+#[derive(Debug, Copy, Clone, PartialEq, Eq, PartialOrd, Ord, Hash)]
 #[repr(transparent)]
 struct VgaAttr(u8);
 impl VgaAttr {
@@ -165,6 +185,11 @@ impl VgaAttr {
         *self = Self((self.0 & !mask) | (value << offset))
     }
 }
+impl Default for VgaAttr {
+    fn default() -> Self {
+        Self::new(VgaBgColour::default(), VgaFgColour::default(), false)
+    }
+}
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 #[repr(C)]
@@ -203,6 +228,7 @@ impl Writer {
     fn write_char(&mut self, byte: u8) {
         match byte {
             b'\n' => self.new_line(),
+            b'\t' => self.write_tab(),
             byte => {
                 if self.column_position >= VGA_BUFFER_WIDTH {
                     self.new_line();
@@ -222,14 +248,31 @@ impl Writer {
         }
     }
 
-    fn write_string(&mut self, s: &str) {
-        for byte in s.bytes() {
-            match byte {
-                // printable ASCII byte or newline
-                PRINTABLE_RANGE_START..=PRINTABLE_RANGE_END | b'\n' => self.write_char(byte),
-                // not part of printable ASCII range
-                _ => self.write_char(VGA_UNPRINTABLE),
-            }
+    fn erase_char(&mut self) {
+        if self.column_position == 0 {
+            self.back_line();
+        }
+
+        let row = VGA_BUFFER_HEIGHT - 1;
+        let col = self.column_position - 1;
+
+        // Declare volatile to ensure the compiler never optimises away the writes
+        self.buffer.chars[row][col].write(VgaChar {
+            text_byte: VGA_WHITESPACE,
+            attr: self.attr,
+        });
+
+        self.column_position -= 1;
+    }
+
+    fn write_tab(&mut self) {
+        if (self.column_position % TAB_WIDTH) == 0 {
+            // Cursor already aligned, tab ahead
+            self.write_char(VGA_WHITESPACE);
+        }
+        // Move forward to the next tab position
+        while (self.column_position % TAB_WIDTH) != 0 {
+            self.write_char(VGA_WHITESPACE);
         }
     }
 
@@ -237,13 +280,40 @@ impl Writer {
         // Shift all the lines upward
         for row in 1..VGA_BUFFER_HEIGHT {
             for col in 0..VGA_BUFFER_WIDTH {
-                let c = self.buffer.chars[row][col].read();
-                self.buffer.chars[row - 1][col].write(c);
+                let character = self.buffer.chars[row][col].read();
+                self.buffer.chars[row - 1][col].write(character);
             }
         }
 
         self.clear_row(VGA_BUFFER_HEIGHT - 1);
         self.column_position = 0;
+    }
+
+    fn back_line(&mut self) {
+        // Shift all the lines downward
+        for row in (0..(VGA_BUFFER_HEIGHT - 1)).rev() {
+            for col in 0..VGA_BUFFER_WIDTH {
+                let character = self.buffer.chars[row][col].read();
+                self.buffer.chars[row + 1][col].write(character);
+            }
+        }
+
+        self.column_position = VGA_BUFFER_WIDTH;
+    }
+
+    fn write_string(&mut self, s: &str) {
+        for byte in s.bytes() {
+            match byte {
+                // printable ASCII byte, tab, or newline
+                PRINTABLE_RANGE_START..=PRINTABLE_RANGE_END | b'\n' | b'\t' => {
+                    self.write_char(byte)
+                }
+                // backspace
+                BACKSPACE_BYTE => self.erase_char(),
+                // not part of printable ASCII range
+                _ => self.write_char(VGA_UNPRINTABLE),
+            }
+        }
     }
 
     fn clear_row(&mut self, row: usize) {
@@ -257,79 +327,86 @@ impl Writer {
         }
     }
 }
-impl fmt::Write for Writer {
+impl Write for Writer {
     fn write_str(&mut self, s: &str) -> fmt::Result {
         self.write_string(s);
         Ok(())
     }
 }
 
-/// Get the current [VgaBgColour].
-pub fn vga_bg() -> VgaBgColour {
-    WRITER.lock().attr.bg()
+macro_rules! vga_get {
+    [$($(#[$doc:meta])*($fn_name:ident, $out:ty, $getter:ident)),*] => {
+        $(
+            $(#[$doc])*
+            pub fn $fn_name() -> $out {
+                interrupts::without_interrupts(|| {
+                    WRITER.lock().attr.$getter()
+                })
+            }
+        )*
+    };
 }
+vga_get![
+    /// Get the current [VgaBgColour].
+    (vga_bg, VgaBgColour, bg),
+    /// Get the current [VgaFgColour].
+    (vga_fg, VgaFgColour, fg),
+    /// Check if the VGA blink bit is set.
+    (vga_blink, bool, blink)
+];
 
-/// Get the current [VgaFgColour].
-pub fn vga_fg() -> VgaFgColour {
-    WRITER.lock().attr.fg()
+macro_rules! vga_set {
+    [$($(#[$doc:meta])*($fn_name:ident, $in:ty, $setter:ident)),*] => {
+        $(
+            $(#[$doc])*
+            pub fn $fn_name(val: $in) {
+                interrupts::without_interrupts(|| {
+                    WRITER.lock().attr.$setter(val);
+                });
+            }
+        )*
+    };
 }
-
-/// Check if the VGA blink bit is set.
-pub fn vga_blink() -> bool {
-    WRITER.lock().attr.blink()
-}
-
-/// Set the VGA background colour to the given [VgaBgColour].
-pub fn set_vga_bg(bg: VgaBgColour) {
-    WRITER.lock().attr.set_bg(bg);
-}
-
-/// Set the VGA foreground colour to the given [VgaFgColour].
-pub fn set_vga_fg(fg: VgaFgColour) {
-    WRITER.lock().attr.set_fg(fg);
-}
-
-/// Set the VGA blink bit to the given value.
-pub fn set_vga_blink(blink: bool) {
-    WRITER.lock().attr.set_blink(blink);
-}
+vga_set![
+    /// Set the VGA background colour to the given [VgaBgColour].
+    (set_vga_bg, VgaBgColour, set_bg),
+    /// Set the VGA foreground colour to the given [VgaFgColour].
+    (set_vga_fg, VgaFgColour, set_fg),
+    /// Set the VGA blink bit to the given value.
+    (set_vga_blink, bool, set_blink)
+];
 
 /// Set the [VgaBgColour], the [VgaFgColour], and the VGA blink value.
 pub fn set_vga_attr(bg: VgaBgColour, fg: VgaFgColour, blink: bool) {
-    WRITER.lock().attr = VgaAttr::new(bg, fg, blink);
+    interrupts::without_interrupts(|| {
+        WRITER.lock().attr = VgaAttr::new(bg, fg, blink);
+    });
 }
 
-/// Prints to VGA buffer using format syntax.
-#[macro_export]
-macro_rules! print {
-    ($($arg:tt)*) => ($crate::vga_text::_print(format_args!($($arg)*)));
-}
-
-/// Prints to VGA buffer using format syntax with a newline.
-#[macro_export]
-macro_rules! println {
-    () => ($crate::print!("\n"));
-    ($($arg:tt)*) => ($crate::print!("{}\n", format_args!($($arg)*)));
+/// Set the VGA text attribute to the default values.
+pub fn set_default_vga_attr() {
+    interrupts::without_interrupts(|| {
+        WRITER.lock().attr = VgaAttr::default();
+    });
 }
 
 #[doc(hidden)]
 pub fn _print(args: fmt::Arguments) {
-    use core::fmt::Write;
-    WRITER.lock().write_fmt(args).unwrap();
+    interrupts::without_interrupts(|| {
+        WRITER.lock().write_fmt(args).unwrap();
+    });
 }
 
 #[cfg(test)]
 mod tests {
     use super::*;
 
-    fn clear_buffer() {
-        for _ in 0..VGA_BUFFER_HEIGHT {
-            println!();
-        }
-    }
+    const WRITELN_FAIL_MSG: &str = "writeln fail :(";
 
-    fn read_char(row: usize, col: usize) -> VgaChar {
-        WRITER.lock().buffer.chars[row][col].read()
+    fn clear_buffer(writer: &mut Writer) {
+        for _ in 0..(VGA_BUFFER_HEIGHT + 1) {
+            writeln!(writer).expect(WRITELN_FAIL_MSG);
+        }
     }
 
     #[test_case]
@@ -339,21 +416,27 @@ mod tests {
 
     #[test_case]
     fn many_println() {
-        for _ in 0..200 {
-            println!("ping!");
-        }
-        clear_buffer();
+        interrupts::without_interrupts(|| {
+            let mut writer = WRITER.lock();
+            for _ in 0..200 {
+                writeln!(writer, "ping!").expect(WRITELN_FAIL_MSG);
+            }
+        });
     }
 
     #[test_case]
     fn println_appears_on_screen() {
         let s = "Hello, world!";
-        println!("{}", s);
-        for (i, c) in s.chars().enumerate() {
-            let vga_char = read_char(VGA_BUFFER_HEIGHT - 2, i);
-            assert_eq!(char::from(vga_char.text_byte), c);
-        }
-        clear_buffer();
+
+        interrupts::without_interrupts(|| {
+            let mut writer = WRITER.lock();
+            clear_buffer(&mut writer);
+            writeln!(writer, "\n{}", s).expect(WRITELN_FAIL_MSG);
+            for (i, c) in s.chars().enumerate() {
+                let vga_char = writer.buffer.chars[VGA_BUFFER_HEIGHT - 2][i].read();
+                assert_eq!(char::from(vga_char.text_byte), c);
+            }
+        });
     }
 
     #[test_case]
@@ -361,18 +444,32 @@ mod tests {
         let test_char = 'O';
         let test_next_line_char = 'I';
 
-        for _ in 0..(VGA_BUFFER_WIDTH) {
-            print!("{}", test_char);
-        }
-        print!("{}", test_next_line_char);
+        interrupts::without_interrupts(|| {
+            let mut writer = WRITER.lock();
+            clear_buffer(&mut writer);
+            for _ in 0..(VGA_BUFFER_WIDTH) {
+                write!(writer, "{}", test_char).expect(WRITELN_FAIL_MSG);
+            }
+            write!(writer, "{}", test_next_line_char).expect(WRITELN_FAIL_MSG);
 
-        for i in 0..VGA_BUFFER_WIDTH {
-            let vga_char = read_char(VGA_BUFFER_HEIGHT - 2, i);
-            assert_eq!(char::from(vga_char.text_byte), test_char);
-        }
-        let vga_char = read_char(VGA_BUFFER_HEIGHT - 1, 0);
-        assert_eq!(char::from(vga_char.text_byte), test_next_line_char);
-        clear_buffer();
+            for i in 0..VGA_BUFFER_WIDTH {
+                let vga_char = writer.buffer.chars[VGA_BUFFER_HEIGHT - 2][i].read();
+                assert_eq!(char::from(vga_char.text_byte), test_char);
+            }
+            let vga_char = writer.buffer.chars[VGA_BUFFER_HEIGHT - 1][0].read();
+            assert_eq!(char::from(vga_char.text_byte), test_next_line_char);
+        });
+    }
+
+    #[test_case]
+    fn print_tab() {
+        interrupts::without_interrupts(|| {
+            let mut writer = WRITER.lock();
+            clear_buffer(&mut writer);
+            assert_eq!(writer.column_position, 0);
+            write!(writer, "\t").expect(WRITELN_FAIL_MSG);
+            assert_eq!(writer.column_position, TAB_WIDTH);
+        });
     }
 
     #[test_case]
