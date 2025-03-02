@@ -12,7 +12,7 @@ use x86_64::{
 
 use crate::{
     gdt::DOUBLE_FAULT_IST_INDEX,
-    print, println,
+    hlt_loop, print, println,
     vga_text::{set_vga_fg, vga_fg, VgaFgColour},
 };
 
@@ -277,12 +277,18 @@ extern "x86-interrupt" fn page_fault_handler(
     stack_frame: InterruptStackFrame,
     error_code: PageFaultErrorCode,
 ) {
-    // TODO
     #[cfg(debug_assertions)]
     {
         exception_title();
-        println!("PAGE FAULT {:#X}\n{:#?}", error_code, stack_frame);
+        println!(
+            "PAGE FAULT\nError Code: {:?}\nAccessed Address: {:#X} \n{:#?}",
+            error_code,
+            registers::control::Cr2::read(),
+            stack_frame
+        );
     }
+    // Can't continue execution without resolving the page fault
+    hlt_loop();
 }
 
 /// Handler for x87 floating-point exceptions.
