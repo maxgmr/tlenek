@@ -1,6 +1,8 @@
 //! Functionality related to interrupts.
 
 use lazy_static::lazy_static;
+use pic8259::ChainedPics;
+use spin;
 use x86_64::structures::idt::{InterruptDescriptorTable, InterruptStackFrame};
 
 use crate::{
@@ -8,6 +10,31 @@ use crate::{
     print, println,
     vga_text::{set_vga_fg, vga_fg, VgaFgColour},
 };
+
+const PIC_INTERRUPT_LINES: u8 = 8;
+
+/// Start after the 32 exception slots
+pub const PIC_1_OFFSET: u8 = 32;
+/// Start after PIC 1
+pub const PIC_2_OFFSET: u8 = PIC_1_OFFSET + PIC_INTERRUPT_LINES;
+
+/// The different PIC hardware interrupts.
+#[derive(Debug, Clone, Copy)]
+#[repr(u8)]
+pub enum InterruptIndex {
+    /// Programmable interval timer (PIT) interrupt
+    Timer = PIC_1_OFFSET,
+}
+impl From<InterruptIndex> for u8 {
+    fn from(value: InterruptIndex) -> Self {
+        value as u8
+    }
+}
+impl From<InterruptIndex> for usize {
+    fn from(value: InterruptIndex) -> Self {
+        u8::from(value) as usize
+    }
+}
 
 lazy_static! {
     static ref IDT: InterruptDescriptorTable = {
@@ -21,9 +48,17 @@ lazy_static! {
         }
         idt.machine_check.set_handler_fn(machine_check_handler);
 
+        // PIC hardware interrupts
+        idt[InterruptIndex::Timer.into()].set_handler_fn(timer_interrupt_handler);
+
         idt
     };
 }
+
+/// The Intel 8259 primary/secondary PIC layout used for hardware interrupts.
+pub static PICS: spin::Mutex<ChainedPics> =
+    // UNSAFE: Can cause UB if the PIC is misconfigured.
+    spin::Mutex::new(unsafe { ChainedPics::new(PIC_1_OFFSET, PIC_2_OFFSET) });
 
 /// Create a new [InterruptDescriptorTable], which specifies handler functions for each CPU
 /// exception.
@@ -54,6 +89,18 @@ extern "x86-interrupt" fn double_fault_handler(
 extern "x86-interrupt" fn machine_check_handler(stack_frame: InterruptStackFrame) -> ! {
     exception_title();
     panic!("MACHINE_CHECK\n{:#?}", stack_frame)
+}
+
+/// Handler for the hardware timer interrupt.
+extern "x86-interrupt" fn timer_interrupt_handler(_stack_frame: InterruptStackFrame) {
+    print!(".");
+    // Send EOI signal
+    // UNSAFE: Using the wrong interrupt vector number could delete an important unsent interrupt
+    // or cause the system to hang.
+    unsafe {
+        PICS.lock()
+            .notify_end_of_interrupt(InterruptIndex::Timer.into());
+    }
 }
 
 /// Print "EXCEPTION" in nice scary red text.

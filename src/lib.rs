@@ -20,6 +20,9 @@ pub use test_framework::{test_panic_handler, test_runner};
 pub fn init() {
     gdt::init();
     interrupts::init_idt();
+    unsafe { interrupts::PICS.lock().initialize() };
+    // Execute `sti` instruction to enable external interrupts.
+    x86_64::instructions::interrupts::enable();
 }
 
 #[cfg(test)]
