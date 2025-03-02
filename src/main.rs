@@ -5,6 +5,8 @@
 #![reexport_test_harness_main = "test_main"]
 
 use core::panic::PanicInfo;
+
+use bootloader::{entry_point, BootInfo};
 #[cfg(not(test))]
 use tlenek_core::vga_text::VgaBgColour;
 use tlenek_core::{
@@ -18,11 +20,11 @@ use tlenek_core::{test_panic_handler, test_runner};
 
 const VERSION_MSG: &str = concat!(env!("CARGO_PKG_NAME"), " ", env!("CARGO_PKG_VERSION"));
 
+// Allow main kernel entry point to be type-checked to avoid UB
+entry_point!(kernel_main);
+
 /// Entry point.
-///
-/// Use Linux conventions- make sure it's called `_start`
-#[no_mangle]
-pub extern "C" fn _start() -> ! {
+fn kernel_main(boot_info: &'static BootInfo) -> ! {
     init();
 
     welcome();
